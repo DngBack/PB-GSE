@@ -1,0 +1,25 @@
+base_model:
+  name: "CB_Focal"
+  backbone: "resnet32"
+
+  # Class-Balanced parameters
+  cb:
+    beta: 0.999 # for w_y = (1-β^{n_y}) / (1-β)
+
+  # Focal Loss parameters
+  focal:
+    alpha: 1.0
+    gamma: 1.0 # focal gamma
+
+  # Training settings
+  epochs: 200
+  lr: 0.1
+  momentum: 0.9
+  weight_decay: 5e-4
+  scheduler: "cosine"
+  optimizer: "sgd"
+  batch_size: 256
+
+  # Model specific
+  use_mixup: true
+  use_cutmix: true

@@ -1,0 +1,42 @@
+data:
+  name: "cifar10_lt" # cifar10_lt, cifar100_lt, imagenet_lt, inaturalist_lt
+  root: "./data"
+
+  # Long-tail parameters
+  imbalance_factor: 100 # 100 or 200 for CIFAR-LT
+  seed: 42
+
+  # Data splits (train/cal/val/test)
+  splits:
+    train: 0.8
+    cal: 0.1
+    val: 0.05
+    test: 0.05
+
+  # Group definition (head/tail)
+  groups:
+    num_groups: 2 # 2 for head/tail, 3 for head/medium/tail
+    tail_threshold: 50 # classes with n_y <= threshold are tail
+
+  # Data augmentation
+  augmentation:
+    train:
+      rand_augment:
+        n: 2
+        m: 10
+      mixup: 0.2
+      cutmix: 0.2
+      random_resized_crop: true
+      color_jitter: 0.1
+    test:
+      center_crop: true
+
+  # Sampling strategy
+  sampling:
+    method: "class_aware" # class_aware, square_root, instance
+    balanced_batch_ratio: 0.5 # >=50% from non-head classes
+
+  # Data loader
+  batch_size: 256
+  num_workers: 4
+  pin_memory: true

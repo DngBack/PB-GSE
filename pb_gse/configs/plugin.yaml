@@ -1,0 +1,25 @@
+plugin:
+  # Rejection cost
+  rejection_cost: 0.1 # c parameter
+
+  # Fixed-point iteration for α, μ
+  fixed_point:
+    max_iterations: 20
+    tolerance: 1e-6
+    lambda_grid: [-2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0] # for μ = [λ, -λ]
+    lambda_step: 0.1
+
+  # Group settings
+  groups:
+    num_groups: 2 # K
+    group_names: ["head", "tail"]
+
+  # Worst-group extension
+  worst_group:
+    enabled: true
+    max_iterations: 30
+    learning_rate: 0.1 # η for EG
+    inner_epochs: 5 # epochs for inner gating training
+
+  # Evaluation
+  coverage_levels: [0.7, 0.8, 0.9] # for reporting BSE@coverage

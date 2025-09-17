@@ -1,0 +1,28 @@
+base_model:
+  name: "cRT"
+  backbone: "resnet32" # resnet32, resnet18, convnext_tiny
+
+  # Two-stage training
+  stage1:
+    loss: "cross_entropy"
+    epochs: 200
+    lr: 0.1
+    momentum: 0.9
+    weight_decay: 5e-4
+    scheduler: "cosine"
+
+  stage2:
+    loss: "balanced_softmax" # balanced_softmax, logit_adjust
+    epochs: 50
+    lr: 0.01
+    freeze_backbone: true
+
+  # Training settings
+  optimizer: "sgd"
+  batch_size: 256
+  ema: true
+  ema_decay: 0.999
+
+  # Model specific
+  use_mixup: true
+  use_cutmix: true

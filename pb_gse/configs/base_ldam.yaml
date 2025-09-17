@@ -1,0 +1,25 @@
+base_model:
+  name: "LDAM_DRW"
+  backbone: "resnet32"
+
+  # LDAM parameters
+  ldam:
+    margin_scale: 1.0 # C in m_y = C / n_y^{1/4}
+    margin_exp: 0.25 # 1/4 exponent
+
+  # Deferred Re-Weighting
+  drw:
+    start_epoch: 100 # start DRW at half training
+
+  # Training settings
+  epochs: 200
+  lr: 0.1
+  momentum: 0.9
+  weight_decay: 5e-4
+  scheduler: "cosine"
+  optimizer: "sgd"
+  batch_size: 256
+
+  # Model specific
+  use_mixup: false
+  use_cutmix: false

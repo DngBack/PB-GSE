@@ -1,0 +1,35 @@
+gating:
+  # Network architecture
+  network:
+    hidden_dims: [128, 64] # MLP hidden dimensions
+    dropout: 0.1
+    activation: "relu"
+
+  # Input features
+  features:
+    use_probs: true # concat all p^{(m)}(x)
+    use_entropy: true # entropy of each model
+    use_max_prob: true # max prob of each model
+    use_disagreement: true # variance/disagreement between models
+    use_group_onehot: true # one-hot group indicator
+
+  # PAC-Bayes settings
+  pac_bayes:
+    method: "gaussian" # deterministic or gaussian
+    prior_std: 1.0 # σ_0 for Π = N(0, σ_0^2 I)
+    posterior_std_init: 0.1 # initial σ for Q = N(μ, σ^2 I)
+    group_aware_prior: true # larger σ_0 for tail features
+    tail_prior_scale: 2.0 # multiply σ_0 by this for tail
+
+  # Training
+  epochs: 30
+  lr: 1e-3
+  optimizer: "adam"
+  batch_size: 1024
+  early_stopping: true
+  patience: 5
+
+  # Regularization
+  kl_weight: 1.0 # weight for KL(Q||Π) term
+  fairness_weight: 0.1 # λ for Ω_fair penalty
+  confidence_threshold: 0.05 # δ for PAC-Bayes bound

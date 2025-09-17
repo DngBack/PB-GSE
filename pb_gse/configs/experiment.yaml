@@ -1,0 +1,28 @@
+defaults:
+  - data: data
+  - base_models: [base_crt, base_ldam, base_cbfocal]
+  - gating: gating
+  - plugin: plugin
+
+experiment:
+  name: "pb_gse_cifar10_lt"
+  seed: 42
+  device: "cuda"
+
+  # Experiment stages
+  stages:
+    train_base_models: true
+    calibrate_models: true
+    train_gating: true
+    run_plugin: true
+    evaluate: true
+
+  # Logging
+  logging:
+    use_wandb: false
+    log_dir: "./outputs/logs"
+    save_artifacts: true
+
+  # Reproducibility
+  deterministic: true
+  benchmark: false
