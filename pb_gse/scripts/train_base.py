@@ -298,13 +298,13 @@ def main():
 
     # Get learning rate from stage1 or main config
     if "stage1" in config["base_model"]:
-        lr = config["base_model"]["stage1"]["lr"]
-        momentum = config["base_model"]["stage1"].get("momentum", 0.9)
-        weight_decay = config["base_model"]["stage1"].get("weight_decay", 5e-4)
+        lr = float(config["base_model"]["stage1"]["lr"])
+        momentum = float(config["base_model"]["stage1"].get("momentum", 0.9))
+        weight_decay = float(config["base_model"]["stage1"].get("weight_decay", 5e-4))
     else:
-        lr = config["base_model"].get("lr", 0.1)
-        momentum = config["base_model"].get("momentum", 0.9)
-        weight_decay = config["base_model"].get("weight_decay", 5e-4)
+        lr = float(config["base_model"].get("lr", 0.1))
+        momentum = float(config["base_model"].get("momentum", 0.9))
+        weight_decay = float(config["base_model"].get("weight_decay", 5e-4))
 
     if optimizer_name == "sgd":
         optimizer = optim.SGD(

@@ -15,7 +15,7 @@ base_model:
   epochs: 10 # Reduced for demo
   lr: 0.1
   momentum: 0.9
-  weight_decay: 5e-4
+  weight_decay: 0.0005
   scheduler: "cosine"
   optimizer: "sgd"
   batch_size: 256
