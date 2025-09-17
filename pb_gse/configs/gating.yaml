@@ -11,7 +11,8 @@ gating:
     use_entropy: true # entropy of each model
     use_max_prob: true # max prob of each model
     use_disagreement: true # variance/disagreement between models
-    use_group_onehot: true # one-hot group indicator
+    use_soft_group_mass: true # g_mass^(m)(x; k) = Σ_{y∈G_k} p_y^(m)(x)
+    use_group_onehot: true # one-hot group indicator (training only)
 
   # PAC-Bayes settings
   pac_bayes:

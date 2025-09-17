@@ -74,11 +74,19 @@ class PluginRule:
 
 
 class FixedPointSolver:
-    """Fixed-point iteration for α parameters"""
+    """Fixed-point iteration for α parameters with damping and clipping"""
 
-    def __init__(self, max_iterations: int = 20, tolerance: float = 1e-6):
+    def __init__(
+        self,
+        max_iterations: int = 20,
+        tolerance: float = 1e-6,
+        damping_factor: float = 0.3,
+        eps: float = 0.01,
+    ):
         self.max_iterations = max_iterations
         self.tolerance = tolerance
+        self.damping_factor = damping_factor  # ρ in α^{t+1} ← (1-ρ)α^t + ρ * new_α
+        self.eps = eps  # for clipping: α_k ∈ [ε, K-ε]
 
     def solve_alpha(
         self,
@@ -105,7 +113,7 @@ class FixedPointSolver:
             predictions, rejections = plugin_rule.forward(probs)
             accept_mask = rejections == 0
 
-            # Update α for each group
+            # Update α for each group with damping and clipping
             for group_id in range(num_groups):
                 group_mask = group_ids == group_id
                 group_accept_mask = group_mask & accept_mask
@@ -114,7 +122,17 @@ class FixedPointSolver:
                     accept_rate = (
                         group_accept_mask.sum().float() / group_mask.sum().float()
                     )
-                    alpha[group_id] = num_groups * accept_rate.item()
+                    new_alpha = num_groups * accept_rate.item()
+
+                    # Apply damping: α^{t+1} ← (1-ρ)α^t + ρ * new_α
+                    alpha[group_id] = (1 - self.damping_factor) * alpha_old[
+                        group_id
+                    ] + self.damping_factor * new_alpha
+
+                    # Apply clipping: α_k ∈ [ε, K-ε]
+                    alpha[group_id] = max(
+                        self.eps, min(num_groups - self.eps, alpha[group_id])
+                    )
                 else:
                     alpha[group_id] = 1.0
 

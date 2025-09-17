@@ -65,8 +65,9 @@ class GatingNetwork(nn.Module):
 class FeatureExtractor:
     """Extract features for gating network input"""
 
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict, group_info: Optional[Dict] = None):
         self.config = config["features"]
+        self.group_info = group_info
 
     def extract(
         self,
@@ -111,7 +112,37 @@ class FeatureExtractor:
                 )  # [batch, 1]
                 features.append(disagreement_scalar)
 
-        # Group one-hot encoding
+        # Soft group-mass features: g_mass^(m)(x; k) = Σ_{y∈G_k} p_y^(m)(x)
+        if self.config.get("use_soft_group_mass", True):
+            group_masses = []
+            for probs in model_probs:
+                # Assume we have group_info accessible
+                if hasattr(self, "group_info") and self.group_info is not None:
+                    num_groups = len(
+                        self.group_info.get("group_to_classes", {0: [], 1: []})
+                    )
+                    mass_features = torch.zeros(
+                        probs.size(0), num_groups, device=probs.device
+                    )
+
+                    for group_id, class_list in self.group_info[
+                        "group_to_classes"
+                    ].items():
+                        if class_list:  # Check if group has classes
+                            class_indices = torch.tensor(
+                                class_list, device=probs.device
+                            )
+                            mass_features[:, group_id] = torch.sum(
+                                probs[:, class_indices], dim=1
+                            )
+
+                    group_masses.append(mass_features)
+
+            if group_masses:
+                concat_masses = torch.cat(group_masses, dim=1)  # [batch, M*K]
+                features.append(concat_masses)
+
+        # Group one-hot encoding (only for training, not inference)
         if self.config.get("use_group_onehot", True) and group_onehot is not None:
             features.append(group_onehot)
 
@@ -269,16 +300,27 @@ class PACBayesGating(nn.Module):
         return ensemble_probs
 
     def pac_bayes_bound(
-        self, empirical_loss: torch.Tensor, n_samples: int, delta: float = 0.05
+        self,
+        empirical_loss: torch.Tensor,
+        n_samples: int,
+        delta: float = 0.05,
+        L_alpha: float = None,
     ) -> torch.Tensor:
-        """Compute PAC-Bayes bound"""
+        """Compute PAC-Bayes bound with proper L_α scaling (Formula 7)"""
         if self.config["method"] == "gaussian":
             # KL divergence term
             prior_std = self.config["prior_std"]
             kl_div = self.posterior.kl_divergence(prior_std)
 
-            # PAC-Bayes bound
-            bound = empirical_loss + torch.sqrt(
+            # Get L_α for proper scaling
+            if L_alpha is None:
+                # Fallback estimation: L_α ≈ max{c, K} + c where K=num_groups
+                c = self.config.get("rejection_cost", 0.1)
+                K = self.config.get("num_groups", 2)
+                L_alpha = max(c, K) + c
+
+            # PAC-Bayes bound (Formula 7): empirical + L_α * sqrt((KL + log(2n/δ)) / (2(n-1)))
+            bound = empirical_loss + L_alpha * torch.sqrt(
                 (kl_div + math.log(2 * n_samples / delta)) / (2 * (n_samples - 1))
             )
         else:
@@ -293,7 +335,7 @@ class PACBayesGating(nn.Module):
 
 
 class BalancedLinearLoss:
-    """Balanced linear loss for PAC-Bayes optimization"""
+    """Balanced linear loss for PAC-Bayes optimization (Formula 6)"""
 
     def __init__(
         self,
@@ -306,6 +348,11 @@ class BalancedLinearLoss:
         self.mu = mu
         self.rejection_cost = rejection_cost
         self.group_info = group_info
+        self.class_to_group = group_info["class_to_group"]
+
+        # Precompute L_α for normalization: L_α = max{c, Σ_k 1/α_k} + c
+        alpha_sum = sum(1.0 / alpha_k for alpha_k in alpha.values())
+        self.L_alpha = max(rejection_cost, alpha_sum) + rejection_cost
 
     def __call__(
         self,
@@ -313,44 +360,58 @@ class BalancedLinearLoss:
         targets: torch.Tensor,
         group_ids: torch.Tensor,
     ) -> torch.Tensor:
-        """Compute balanced linear loss"""
-        batch_size = ensemble_probs.size(0)
-        losses = []
+        """Compute balanced linear loss according to Formula (6)"""
+        device = ensemble_probs.device
+        batch_size, num_classes = ensemble_probs.shape
 
-        for i in range(batch_size):
-            probs = ensemble_probs[i]
-            target = targets[i].item()
-            group_id = group_ids[i].item()
+        # Create alpha and mu tensors for all classes
+        alpha_tensor = torch.zeros(num_classes, device=device)
+        mu_tensor = torch.zeros(num_classes, device=device)
 
-            # Compute classifier decision h_θ(x)
-            alpha_weighted_probs = probs / self.alpha[target]
-            pred_class = torch.argmax(alpha_weighted_probs).item()
+        for class_id in range(num_classes):
+            group_id = self.class_to_group[class_id]
+            alpha_tensor[class_id] = self.alpha[group_id]
+            mu_tensor[class_id] = self.mu[group_id]
 
-            # Compute rejection decision r_θ(x)
-            lhs = torch.max(alpha_weighted_probs)
+        # Classifier h_θ(x) = argmax_y p_Qθ,y(x) / α[group[y]] (Formula 5a)
+        weighted_probs = ensemble_probs / alpha_tensor.unsqueeze(0)
+        predictions = torch.argmax(weighted_probs, dim=-1)
 
-            rhs = 0
-            for class_id in range(len(probs)):
-                class_group = self.group_info["class_to_group"][class_id]
-                rhs += (1 / self.alpha[class_group] - self.mu[class_group]) * probs[
-                    class_id
-                ]
-            rhs -= self.rejection_cost
+        # Rejector decision (Formula 5b)
+        # LHS: max_y p_Qθ,y(x) / α[group[y]]
+        lhs = torch.max(weighted_probs, dim=-1)[0]
 
-            accept = lhs >= rhs
+        # RHS: Σ_j (1/α[group[j]] - μ[group[j]]) * p_Qθ,j(x) - c
+        rhs_coeffs = 1.0 / alpha_tensor - mu_tensor
+        rhs = (
+            torch.sum(rhs_coeffs.unsqueeze(0) * ensemble_probs, dim=-1)
+            - self.rejection_cost
+        )
 
-            # Compute loss
-            if accept:
-                if pred_class != target:
-                    loss = 1.0 / self.alpha[group_id]
-                else:
-                    loss = 0.0
-            else:
-                loss = self.rejection_cost
+        # Accept if lhs >= rhs, reject otherwise
+        accept_mask = lhs >= rhs
 
-            losses.append(loss)
+        # Compute loss according to Formula (6):
+        # ℓ_α(θ;(x,y)) = Σ_k (1/α_k) * 1[y∈G_k] * 1[r_θ(x)=0] * 1[h_θ(x)≠y] + c * 1[r_θ(x)=1]
+        error_mask = predictions != targets
 
-        return torch.tensor(losses).mean().to(ensemble_probs.device)
+        # Get alpha values for target groups
+        target_alphas = torch.tensor(
+            [self.alpha[group_ids[i].item()] for i in range(batch_size)], device=device
+        )
+
+        # Loss computation
+        accept_error_loss = (
+            (1.0 / target_alphas) * accept_mask.float() * error_mask.float()
+        )
+        reject_loss = self.rejection_cost * (~accept_mask).float()
+
+        raw_loss = accept_error_loss + reject_loss
+
+        # Normalize by L_α to get ℓ̃_α ∈ [0,1] for PAC-Bayes
+        normalized_loss = raw_loss / self.L_alpha
+
+        return normalized_loss.mean()
 
 
 def create_gating_features(

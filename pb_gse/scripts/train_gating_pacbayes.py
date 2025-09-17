@@ -62,7 +62,7 @@ def create_gating_dataset(
     """Create dataset for gating network training"""
 
     # Extract features
-    feature_extractor = FeatureExtractor(config["gating"])
+    feature_extractor = FeatureExtractor(config["gating"], group_info)
 
     # Create group one-hot encodings
     num_groups = config["plugin"]["groups"]["num_groups"]

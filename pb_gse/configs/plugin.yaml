@@ -6,6 +6,8 @@ plugin:
   fixed_point:
     max_iterations: 20
     tolerance: 1e-6
+    damping_factor: 0.3 # ρ for α^{t+1} ← (1-ρ)α^t + ρ * new_α
+    eps: 0.01 # clipping: α_k ∈ [ε, K-ε]
     lambda_grid: [-2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0] # for μ = [λ, -λ]
     lambda_step: 0.1
 
