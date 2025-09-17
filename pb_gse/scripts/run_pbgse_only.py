@@ -110,10 +110,9 @@ def run_pbgse_method(config: dict, probs_dir: str, group_info: dict, device: str
 
     logging.info("=== Running PB-GSE Method ===")
 
-    model_names = [
-        d for d in os.listdir(probs_dir) if os.path.isdir(os.path.join(probs_dir, d))
-    ]
-    logging.info(f"Using models: {model_names}")
+    # Use the actual trained models instead of synthetic
+    model_names = ["cRT", "LDAM_DRW", "CB_Focal"]
+    logging.info(f"Using trained models: {model_names}")
 
     # Load model probabilities
     cal_probs, cal_targets = load_model_probs(probs_dir, model_names, "cal")
@@ -288,13 +287,44 @@ def main():
     np.random.seed(seed)
 
     try:
-        if args.use_synthetic or args.probs_dir is None:
-            # Use synthetic data
+        # Load group info
+        _, group_info = get_dataset_and_splits(config)
+
+        if args.probs_dir and os.path.exists(args.probs_dir):
+            # Use provided probabilities (trained models)
+            probs_dir = args.probs_dir
+            logging.info(f"Using existing model probabilities from: {probs_dir}")
+
+            # Check if all required model directories exist
+            required_models = ["cRT", "LDAM_DRW", "CB_Focal"]
+            missing_models = []
+            for model_name in required_models:
+                model_dir = os.path.join(probs_dir, model_name)
+                if not os.path.exists(model_dir):
+                    missing_models.append(model_name)
+
+            if missing_models:
+                logging.warning(f"Missing model probabilities for: {missing_models}")
+                logging.info("Falling back to synthetic data...")
+                probs_dir, group_info = create_synthetic_base_models(config, device)
+            else:
+                logging.info("All trained model probabilities found!")
+
+        elif args.use_synthetic:
+            # Explicitly use synthetic data
+            logging.info("Using synthetic data as requested...")
             probs_dir, group_info = create_synthetic_base_models(config, device)
         else:
-            # Use provided probabilities
-            probs_dir = args.probs_dir
-            _, group_info = get_dataset_and_splits(config)
+            # Default: try to find existing probabilities, fallback to synthetic
+            default_probs_dir = "./outputs/probs_calibrated"
+            if os.path.exists(default_probs_dir):
+                probs_dir = default_probs_dir
+                logging.info(f"Found existing probabilities at: {probs_dir}")
+            else:
+                logging.info(
+                    "No existing probabilities found, creating synthetic data..."
+                )
+                probs_dir, group_info = create_synthetic_base_models(config, device)
 
         # Run PB-GSE method
         results, gating_model, plugin_rule = run_pbgse_method(
