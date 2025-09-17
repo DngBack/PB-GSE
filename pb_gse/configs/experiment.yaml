@@ -1,8 +1,78 @@
-defaults:
-  - data: data
-  - base_models: [base_crt, base_ldam, base_cbfocal]
-  - gating: gating
-  - plugin: plugin
+# Main experiment configuration
+data:
+  name: "cifar10_lt"
+  root: "./data"
+  imbalance_factor: 100
+  seed: 42
+  splits:
+    train: 0.8
+    cal: 0.1
+    val: 0.05
+    test: 0.05
+  groups:
+    num_groups: 2
+    tail_threshold: 50
+  augmentation:
+    train:
+      rand_augment:
+        n: 2
+        m: 10
+      mixup: 0.2
+      cutmix: 0.2
+      random_resized_crop: true
+      color_jitter: 0.1
+    test:
+      center_crop: true
+  sampling:
+    method: "class_aware"
+    balanced_batch_ratio: 0.5
+  batch_size: 256
+  num_workers: 4
+  pin_memory: true
+
+gating:
+  network:
+    hidden_dims: [128, 64]
+    dropout: 0.1
+    activation: "relu"
+  features:
+    use_probs: true
+    use_entropy: true
+    use_max_prob: true
+    use_disagreement: true
+    use_group_onehot: true
+  pac_bayes:
+    method: "gaussian"
+    prior_std: 1.0
+    posterior_std_init: 0.1
+    group_aware_prior: true
+    tail_prior_scale: 2.0
+  epochs: 30
+  lr: 1e-3
+  optimizer: "adam"
+  batch_size: 1024
+  early_stopping: true
+  patience: 5
+  kl_weight: 1.0
+  fairness_weight: 0.1
+  confidence_threshold: 0.05
+
+plugin:
+  rejection_cost: 0.1
+  fixed_point:
+    max_iterations: 20
+    tolerance: 1e-6
+    lambda_grid: [-2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0]
+    lambda_step: 0.1
+  groups:
+    num_groups: 2
+    group_names: ["head", "tail"]
+  worst_group:
+    enabled: true
+    max_iterations: 30
+    learning_rate: 0.1
+    inner_epochs: 5
+  coverage_levels: [0.7, 0.8, 0.9]
 
 experiment:
   name: "pb_gse_cifar10_lt"
