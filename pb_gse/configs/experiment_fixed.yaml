@@ -1,0 +1,80 @@
+data:
+  augmentation:
+    test:
+      center_crop: true
+    train:
+      color_jitter: 0.1
+      cutmix: 0.2
+      mixup: 0.2
+      rand_augment:
+        m: 10
+        n: 2
+      random_resized_crop: true
+  batch_size: 256
+  groups:
+    num_groups: 2
+    tail_threshold: 50
+  imbalance_factor: 100
+  name: cifar10_lt
+  num_workers: 2
+  pin_memory: false
+  root: ./data
+  sampling:
+    balanced_batch_ratio: 0.5
+    method: class_aware
+  seed: 42
+  splits:
+    cal: 0.1
+    test: 0.05
+    train: 0.8
+    val: 0.05
+experiment:
+  deterministic: true
+  device: cuda
+  name: pbgse_paper_fixed
+  seed: 42
+gating:
+  batch_size: 256
+  early_stopping: true
+  epochs: 10
+  features:
+    use_disagreement: true
+    use_entropy: true
+    use_group_onehot: true
+    use_max_prob: true
+    use_probs: true
+  lr: 0.001
+  network:
+    activation: relu
+    dropout: 0.1
+    hidden_dims:
+    - 64
+    - 32
+  optimizer: adam
+  pac_bayes:
+    method: deterministic
+    posterior_std_init: 0.1
+    prior_std: 1.0
+  patience: 5
+plugin:
+  coverage_levels:
+  - 0.7
+  - 0.8
+  - 0.9
+  fixed_point:
+    lambda_grid:
+    - -1.0
+    - -0.5
+    - 0.0
+    - 0.5
+    - 1.0
+    max_iterations: 10
+    tolerance: 1.0e-06
+  groups:
+    group_names:
+    - head
+    - tail
+    num_groups: 2
+  rejection_cost: 0.3
+  worst_group:
+    enabled: false
