@@ -203,6 +203,24 @@ def main():
         prob_save_dir = os.path.join(args.save_dir, "probs_calibrated", model_name)
         os.makedirs(prob_save_dir, exist_ok=True)
 
+        # Create train loader for saving probabilities
+        train_dataset = split_datasets["train"]
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=config["data"]["batch_size"],
+            shuffle=False,
+            num_workers=config["data"]["num_workers"],
+            pin_memory=config["data"]["pin_memory"],
+        )
+
+        save_calibrated_probs(
+            model,
+            calibrator,
+            train_loader,
+            group_info,
+            os.path.join(prob_save_dir, "train.pth"),
+            device,
+        )
         save_calibrated_probs(
             model,
             calibrator,
