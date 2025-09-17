@@ -27,8 +27,8 @@ data:
     method: "class_aware"
     balanced_batch_ratio: 0.5
   batch_size: 256
-  num_workers: 4
-  pin_memory: true
+  num_workers: 2 # Reduced for Colab
+  pin_memory: false # Set to false for Colab compatibility
 
 gating:
   network:
@@ -47,7 +47,7 @@ gating:
     posterior_std_init: 0.1
     group_aware_prior: true
     tail_prior_scale: 2.0
-  epochs: 30
+  epochs: 5 # Reduced for demo
   lr: 1e-3
   optimizer: "adam"
   batch_size: 1024

@@ -293,28 +293,45 @@ def main():
     if config["base_model"].get("ema", False):
         ema_model = EMAModel(model, decay=config["base_model"].get("ema_decay", 0.999))
 
-    # Create optimizer
+    # Create optimizer - handle two-stage training
     optimizer_name = config["base_model"].get("optimizer", "sgd")
+
+    # Get learning rate from stage1 or main config
+    if "stage1" in config["base_model"]:
+        lr = config["base_model"]["stage1"]["lr"]
+        momentum = config["base_model"]["stage1"].get("momentum", 0.9)
+        weight_decay = config["base_model"]["stage1"].get("weight_decay", 5e-4)
+    else:
+        lr = config["base_model"].get("lr", 0.1)
+        momentum = config["base_model"].get("momentum", 0.9)
+        weight_decay = config["base_model"].get("weight_decay", 5e-4)
+
     if optimizer_name == "sgd":
         optimizer = optim.SGD(
             model.parameters(),
-            lr=config["base_model"]["lr"],
-            momentum=config["base_model"].get("momentum", 0.9),
-            weight_decay=config["base_model"].get("weight_decay", 5e-4),
+            lr=lr,
+            momentum=momentum,
+            weight_decay=weight_decay,
         )
     elif optimizer_name == "adam":
         optimizer = optim.Adam(
             model.parameters(),
-            lr=config["base_model"]["lr"],
-            weight_decay=config["base_model"].get("weight_decay", 1e-4),
+            lr=lr,
+            weight_decay=weight_decay,
         )
 
     # Create scheduler
     scheduler_name = config["base_model"].get("scheduler", "cosine")
+
+    # Get epochs from stage1 or main config
+    if "stage1" in config["base_model"]:
+        total_epochs = config["base_model"]["stage1"]["epochs"]
+        scheduler_name = config["base_model"]["stage1"].get("scheduler", "cosine")
+    else:
+        total_epochs = config["base_model"].get("epochs", 200)
+
     if scheduler_name == "cosine":
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(
-            optimizer, T_max=config["base_model"]["epochs"]
-        )
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=total_epochs)
     elif scheduler_name == "step":
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
     else:
@@ -322,7 +339,7 @@ def main():
 
     # Training loop
     best_val_acc = 0.0
-    epochs = config["base_model"]["epochs"]
+    epochs = total_epochs
 
     for epoch in range(epochs):
         # Update loss function (for methods like LDAM with DRW)

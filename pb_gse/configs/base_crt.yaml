@@ -5,7 +5,7 @@ base_model:
   # Two-stage training
   stage1:
     loss: "cross_entropy"
-    epochs: 200
+    epochs: 10 # Reduced for demo
     lr: 0.1
     momentum: 0.9
     weight_decay: 5e-4
@@ -13,7 +13,7 @@ base_model:
 
   stage2:
     loss: "balanced_softmax" # balanced_softmax, logit_adjust
-    epochs: 50
+    epochs: 5 # Reduced for demo
     lr: 0.01
     freeze_backbone: true
 

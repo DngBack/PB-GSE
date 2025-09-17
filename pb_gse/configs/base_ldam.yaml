@@ -9,10 +9,10 @@ base_model:
 
   # Deferred Re-Weighting
   drw:
-    start_epoch: 100 # start DRW at half training
+    start_epoch: 5 # start DRW at half training
 
   # Training settings
-  epochs: 200
+  epochs: 10 # Reduced for demo
   lr: 0.1
   momentum: 0.9
   weight_decay: 5e-4
