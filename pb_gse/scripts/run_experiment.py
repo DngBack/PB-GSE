@@ -86,9 +86,12 @@ def run_inference_and_evaluation(config: dict, args):
     gating_checkpoint = torch.load(gating_path, map_location=device)
 
     # Reconstruct gating model (simplified)
-    input_dim = 100  # This should match the actual feature dimension
-    num_models = len(model_names)
-    gating_model = PACBayesGating(input_dim, num_models, config).to(device)
+    gating_cfg = config["gating"]
+    input_dim = gating_checkpoint.get("input_dim")
+    num_models = gating_checkpoint.get("num_models", len(model_names))
+    if input_dim is None:
+        raise KeyError("Gating checkpoint missing 'input_dim'")
+    gating_model = PACBayesGating(input_dim, num_models, gating_cfg, group_info).to(device)
     gating_model.load_state_dict(gating_checkpoint["model_state_dict"])
 
     # Create inference engine
