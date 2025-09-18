@@ -209,13 +209,16 @@ class PluginOptimizer:
         self.config = config
         fixed_cfg = config.get("fixed_point", {})
         self.fixed_point_solver = FixedPointSolver(
-            max_iterations=fixed_cfg.get("max_iterations", 20),
-            tolerance=fixed_cfg.get("tolerance", 1e-6),
-            damping_factor=fixed_cfg.get("damping_factor", 0.3),
-            eps=fixed_cfg.get("eps", 1e-3),
+            max_iterations=int(fixed_cfg.get("max_iterations", 20)),
+            tolerance=float(fixed_cfg.get("tolerance", 1e-6)),
+            damping_factor=float(fixed_cfg.get("damping_factor", 0.3)),
+            eps=float(fixed_cfg.get("eps", 1e-3)),
         )
         lambda_grid = fixed_cfg.get("lambda_grid", np.linspace(-2.0, 2.0, 9))
-        num_groups = config["groups"]["num_groups"]
+        # Convert string values to float if needed
+        if isinstance(lambda_grid, list):
+            lambda_grid = [float(x) for x in lambda_grid]
+        num_groups = int(config["groups"]["num_groups"])
         self.grid_search = GridSearchOptimizer(lambda_grid, num_groups)
 
     def optimize(

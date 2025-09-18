@@ -146,10 +146,9 @@ def run_inference_and_evaluation(config: dict, args):
         coverage_metrics[f"metrics_at_{coverage}"] = compute_metrics_at_coverage(
             predictions,
             test_targets,
-            rejections,
-            group_ids,
             ensemble_probs,
             coverage,
+            group_ids,
             num_groups,
         )
 

@@ -174,7 +174,7 @@ def main() -> None:
     val_dataset, _, _ = create_gating_dataset(val_probs, val_targets, group_info, config)
     cal_dataset, _, _ = create_gating_dataset(cal_probs, cal_targets, group_info, config, include_group_onehot=False)
 
-    batch_size = config["gating"].get("batch_size", 512)
+    batch_size = int(config["gating"].get("batch_size", 512))
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
     cal_loader = DataLoader(cal_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
@@ -185,7 +185,8 @@ def main() -> None:
         params = list(gating_model.posterior.parameters())
     else:
         params = gating_model.parameters()
-    optimizer = optim.Adam(params, lr=config["gating"].get("lr", 1e-3))
+    lr = float(config["gating"].get("lr", 1e-3))
+    optimizer = optim.Adam(params, lr=lr)
 
     plugin_optimizer = PluginOptimizer(config["plugin"])
 
@@ -200,10 +201,10 @@ def main() -> None:
         cal_weights = gating_model(cal_features, sample=False)
         cal_ensemble = gating_model.compute_ensemble_probs(cal_probs_tensor, cal_weights)
     alpha, mu = plugin_optimizer.optimize(cal_ensemble, cal_targets_tensor, cal_group_ids, group_info)
-    loss_fn = BalancedLinearLoss(alpha, mu, config["plugin"]["rejection_cost"], group_info)
+    loss_fn = BalancedLinearLoss(alpha, mu, float(config["plugin"]["rejection_cost"]), group_info)
 
-    epochs = config["gating"].get("epochs", 30)
-    delta = config["gating"].get("confidence_threshold", 0.05)
+    epochs = int(config["gating"].get("epochs", 30))
+    delta = float(config["gating"].get("confidence_threshold", 0.05))
     mc_samples = int(config["gating"].get("pac_bayes", {}).get("mc_samples", 1))
 
     best_val = float("inf")
